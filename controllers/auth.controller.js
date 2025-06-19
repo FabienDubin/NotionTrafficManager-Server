@@ -18,8 +18,8 @@ exports.signup = async (req, res, next) => {
     req.body;
 
   //Check if the recaptcha token exists
-  if (!recaptchaToken)
-    return res.status(400).json({ message: "Captcha requiered" });
+  // if (!recaptchaToken)
+  //   return res.status(400).json({ message: "Captcha requiered" });
 
   try {
     // Check if email or password or name are provided as empty strings

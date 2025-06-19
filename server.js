@@ -12,3 +12,11 @@ connectDB(MONGO_URI).then(() => {
     console.log(`Server running on port ${PORT}`);
   });
 });
+
+// console.log({
+//   token: process.env.NOTION_API_KEY,
+//   users: process.env.NOTION_DATABASE_USERS_ID,
+//   clients: process.env.NOTION_DATABASE_CLIENTS_ID,
+//   projects: process.env.NOTION_DATABASE_PROJECTS_ID,
+//   trafic: process.env.NOTION_DATABASE_TRAFIC_ID,
+// });
