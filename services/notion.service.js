@@ -50,16 +50,26 @@ class NotionService {
     }
   }
 
-  // Récupérer toutes les tâches non assignées
+  // Récupérer toutes les tâches non assignées (sans utilisateur ET sans période de travail)
   async getUnassignedTasks() {
     try {
       const response = await this.notion.databases.query({
         database_id: this.databases.trafic,
         filter: {
-          property: "Utilisateurs",
-          relation: {
-            is_empty: true,
-          },
+          and: [
+            {
+              property: "Utilisateurs",
+              relation: {
+                is_empty: true,
+              },
+            },
+            {
+              property: "Période de travail",
+              date: {
+                is_empty: true,
+              },
+            },
+          ],
         },
         sorts: [
           {
