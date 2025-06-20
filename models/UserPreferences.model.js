@@ -8,16 +8,30 @@ const userPreferencesSchema = new Schema(
       required: true,
       unique: true,
     },
-    visibleTaskProperties: {
-      showProjects: {
-        type: Boolean,
-        default: false,
-      },
-      showClient: {
-        type: Boolean,
-        default: false,
-      },
-      showEtat: {
+    visibleProperties: {
+      type: [String],
+      default: ["name", "client", "status", "assignee"],
+      enum: [
+        "name",
+        "client",
+        "status",
+        "assignee",
+        "project",
+        "dueDate",
+        "priority",
+        "tags",
+      ],
+    },
+    defaultView: {
+      type: String,
+      enum: ["timeGridWeek", "dayGridMonth"],
+      default: "timeGridWeek",
+    },
+    filterPreferences: {
+      selectedCreatives: [String],
+      selectedClients: [String],
+      selectedProjects: [String],
+      showCompleted: {
         type: Boolean,
         default: false,
       },

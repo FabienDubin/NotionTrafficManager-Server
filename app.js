@@ -11,9 +11,6 @@ const express = require("express");
 
 const app = express();
 
-const notionService = require("./services/notion.service");
-notionService.loadReferenceMaps().catch(console.error);
-
 // ℹ️ This function is getting exported from the config folder. It runs most pieces of middleware
 require("./config")(app);
 
@@ -28,10 +25,7 @@ const usersRoutes = require("./routes/users.route");
 app.use("/users", usersRoutes);
 
 const calendarRoutes = require("./routes/calendar.route");
-app.use("/api/calendar", calendarRoutes);
-
-const preferencesRoutes = require("./routes/preferences.route");
-app.use("/api/preferences", preferencesRoutes);
+app.use("/calendar", calendarRoutes);
 
 // ❗ To handle errors. Routes that don't exist or errors that you handle in specific routes
 require("./error-handling")(app);
