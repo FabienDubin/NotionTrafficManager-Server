@@ -61,7 +61,7 @@ exports.signup = async (req, res, next) => {
     }
 
     //Check if the user should be admin by default according to the array in the .env file
-    const admins = process.env.ADMINS;
+    const admins = process.env.ADMINS?.split(",") || [];
     let role = admins.includes(email) ? "admin" : "user";
 
     // If email is unique, proceed to hash the password
@@ -90,7 +90,15 @@ exports.signup = async (req, res, next) => {
     });
 
     // Create a new object that doesn't expose the password
-    const user = { firstName, lastName, _id, email, image, token, role };
+    const user = {
+      _id,
+      email,
+      image,
+      role,
+      firstName: cleanedFirstName,
+      lastName: cleanedLastName,
+      token,
+    };
 
     //Send a json response containing the user object
     res.status(201).json({ user: user });
@@ -273,7 +281,15 @@ exports.resetPasswordConfirm = async (req, res, next) => {
     await user.save();
     res.status(200).json({ message: "Password reset succefully " });
   } catch (error) {
-    console.log("Invalid token", error);
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Reset token expired" });
+    }
+
+    if (error.name === "JsonWebTokenError") {
+      return res.status(400).json({ message: "Invalid reset token" });
+    }
+
+    console.log("Unexpected error in resetPasswordConfirm:", error);
     next(error);
   }
 };

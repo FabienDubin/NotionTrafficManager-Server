@@ -27,6 +27,12 @@ app.use("/users", usersRoutes);
 const calendarRoutes = require("./routes/calendar.route");
 app.use("/calendar", calendarRoutes);
 
+const settingsRoutes = require("./routes/settings.route");
+app.use("/settings", settingsRoutes);
+
+const bugReportRoutes = require("./routes/bugReport.route");
+app.use("/bug-reports", bugReportRoutes);
+
 // ❗ To handle errors. Routes that don't exist or errors that you handle in specific routes
 require("./error-handling")(app);
 

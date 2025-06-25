@@ -10,6 +10,8 @@ const {
   updateUser,
 } = require("../controllers/user.controller");
 
+const { profileImageUploader } = require("../middleware/azure.middleware");
+
 // GET /users/all
 // Gets all users depending on a page number and a limit sort by name or email or role or createdAt or updatedAt
 router.get("/all", getAllUsers);
@@ -19,8 +21,8 @@ router.get("/all", getAllUsers);
 router.put("/update/:id", updateUser);
 
 // PUT /users/update-image/:userId
-// // Change Profile Picture via Cloudinary
-router.put("/update-image/:userId", updateUserImage);
+// Change Profile Picture via Azure Blob Storage
+router.put("/update-image/:userId", profileImageUploader, updateUserImage);
 
 // DELETE /users/delete/:id
 // Deletes a user by id

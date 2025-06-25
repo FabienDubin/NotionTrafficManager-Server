@@ -241,6 +241,21 @@ class CalendarService {
     }
   }
 
+  // Supprimer une tâche
+  async deleteTask(taskId) {
+    try {
+      console.log("🗑️ Deleting task:", taskId);
+
+      // Supprimer la tâche dans Notion (archivage)
+      await notionService.deleteTask(taskId);
+
+      console.log("✅ Task deleted successfully:", taskId);
+    } catch (error) {
+      console.error("Error in deleteTask:", error);
+      throw error;
+    }
+  }
+
   // Récupérer les préférences utilisateur
   async getUserPreferences(userId) {
     try {

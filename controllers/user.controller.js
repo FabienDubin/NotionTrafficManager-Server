@@ -1,6 +1,6 @@
 //This controller handles all the logic on the user route. It includes functions to get all users, get a single user by ID, and update a user's information. It also handles password reset requests for users.
 const User = require("../models/User.model.js");
-const uploader = require("../middleware/cloudinary.middleware.js");
+const { profileImageUploader } = require("../middleware/azure.middleware.js");
 
 // GET /users/all
 // Gets all users depending on a page number and a limit sort by name or email or role or createdAt or updatedAt
@@ -67,7 +67,7 @@ exports.updateUser = async (req, res) => {
 };
 
 // PUT /users/update-image/:userId
-// // Change Profile Picture via Cloudinary (to be updated to Azure Blob for example)
+// Change Profile Picture via Azure Blob Storage
 exports.updateUserImage = async (req, res, next) => {
   if (!req.file) {
     console.log("there was an error uploading the file");

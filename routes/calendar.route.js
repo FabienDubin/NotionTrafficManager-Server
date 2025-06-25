@@ -11,6 +11,7 @@ router.get("/tasks", calendarController.getTasks);
 router.post("/tasks", calendarController.createTask);
 router.get("/unassigned-tasks", calendarController.getUnassignedTasks);
 router.patch("/tasks/:id", calendarController.updateTask);
+router.delete("/tasks/:id", calendarController.deleteTask);
 router.post("/tasks/filter", calendarController.filterTasks);
 
 // Routes pour les données de référence

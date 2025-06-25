@@ -112,6 +112,34 @@ class CalendarController {
     }
   }
 
+  // DELETE /calendar/tasks/:id
+  async deleteTask(req, res) {
+    try {
+      const { id } = req.params;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          message: "L'ID de la tâche est requis",
+        });
+      }
+
+      await calendarService.deleteTask(id);
+
+      res.json({
+        success: true,
+        message: "Tâche supprimée avec succès",
+      });
+    } catch (error) {
+      console.error("Error in deleteTask:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur lors de la suppression de la tâche",
+        error: error.message,
+      });
+    }
+  }
+
   // GET /calendar/users
   async getUsers(req, res) {
     try {

@@ -1,21 +1,46 @@
 const { Client } = require("@notionhq/client");
+const settingsService = require("./settings.service");
 
 class NotionService {
   constructor() {
-    this.notion = new Client({
-      auth: process.env.NOTION_API_KEY,
-    });
+    this.notion = null;
+    this.databases = null;
+    this.configInitialized = false;
+  }
 
-    this.databases = {
-      users: process.env.NOTION_DATABASE_USERS_ID,
-      clients: process.env.NOTION_DATABASE_CLIENTS_ID,
-      projects: process.env.NOTION_DATABASE_PROJECTS_ID,
-      trafic: process.env.NOTION_DATABASE_TRAFIC_ID,
-    };
+  // Initialiser la configuration Notion (DB en priorité, puis .env)
+  async initializeConfig() {
+    if (this.configInitialized) {
+      return;
+    }
+
+    try {
+      const activeConfig = await settingsService.getActiveNotionConfig();
+
+      this.notion = new Client({
+        auth: activeConfig.config.notionApiKey,
+      });
+
+      this.databases = activeConfig.config.databaseIds;
+      this.configInitialized = true;
+
+      console.log(`✅ Notion config initialized from ${activeConfig.source}`);
+    } catch (error) {
+      console.error("❌ Failed to initialize Notion config:", error);
+      throw new Error("Configuration Notion non disponible");
+    }
+  }
+
+  // S'assurer que la config est initialisée avant chaque appel
+  async ensureConfigInitialized() {
+    if (!this.configInitialized) {
+      await this.initializeConfig();
+    }
   }
 
   // Récupérer les tâches pour une période donnée
   async getTasksByDateRange(startDate, endDate) {
+    await this.ensureConfigInitialized();
     try {
       const response = await this.notion.databases.query({
         database_id: this.databases.trafic,
@@ -50,26 +75,17 @@ class NotionService {
     }
   }
 
-  // Récupérer toutes les tâches non assignées (sans utilisateur ET sans période de travail)
+  // Récupérer toutes les tâches non assignées (sans période de travail UNIQUEMENT)
   async getUnassignedTasks() {
+    await this.ensureConfigInitialized();
     try {
       const response = await this.notion.databases.query({
         database_id: this.databases.trafic,
         filter: {
-          and: [
-            {
-              property: "Utilisateurs",
-              relation: {
-                is_empty: true,
-              },
-            },
-            {
-              property: "Période de travail",
-              date: {
-                is_empty: true,
-              },
-            },
-          ],
+          property: "Période de travail",
+          date: {
+            is_empty: true,
+          },
         },
         sorts: [
           {
@@ -88,6 +104,7 @@ class NotionService {
 
   // Créer une nouvelle tâche
   async createTask(taskData) {
+    await this.ensureConfigInitialized();
     try {
       console.log("🔄 Creating new task in Notion:", taskData);
 
@@ -180,6 +197,7 @@ class NotionService {
 
   // Mettre à jour une tâche
   async updateTask(taskId, updates) {
+    await this.ensureConfigInitialized();
     try {
       console.log("🔄 Updating task in Notion:", { taskId, updates });
 
@@ -294,8 +312,29 @@ class NotionService {
     }
   }
 
+  // Supprimer une tâche (archivage dans Notion)
+  async deleteTask(taskId) {
+    await this.ensureConfigInitialized();
+    try {
+      console.log("🗑️ Deleting task in Notion:", taskId);
+
+      // Dans Notion, on archive la page au lieu de la supprimer définitivement
+      const response = await this.notion.pages.update({
+        page_id: taskId,
+        archived: true,
+      });
+
+      console.log("✅ Task archived successfully in Notion");
+      return response;
+    } catch (error) {
+      console.error("❌ Error deleting task in Notion:", error);
+      throw new Error(`Failed to delete task in Notion: ${error.message}`);
+    }
+  }
+
   // Récupérer la liste des utilisateurs/créatifs
   async getUsers() {
+    await this.ensureConfigInitialized();
     try {
       const response = await this.notion.databases.query({
         database_id: this.databases.users,
@@ -316,6 +355,7 @@ class NotionService {
 
   // Récupérer la liste des clients
   async getClients() {
+    await this.ensureConfigInitialized();
     try {
       const response = await this.notion.databases.query({
         database_id: this.databases.clients,
@@ -336,6 +376,7 @@ class NotionService {
 
   // Récupérer la liste des projets
   async getProjects() {
+    await this.ensureConfigInitialized();
     try {
       const response = await this.notion.databases.query({
         database_id: this.databases.projects,
@@ -356,6 +397,7 @@ class NotionService {
 
   // Récupérer les options de statut depuis la base Notion
   async getStatusOptions() {
+    await this.ensureConfigInitialized();
     try {
       const response = await this.notion.databases.retrieve({
         database_id: this.databases.trafic,
