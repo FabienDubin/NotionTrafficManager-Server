@@ -21,7 +21,13 @@ jobs:
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: '22.x'
+          node-version: "22.x"
+
+      - name: npm install, build, and test
+        run: |
+          npm install
+          npm run build --if-present 
+          # npm run test --if-present
 
       - name: Zip artifact for deployment
         run: zip release.zip ./* -r
@@ -47,7 +53,7 @@ jobs:
 
       - name: Unzip artifact for deployment
         run: unzip release.zip
-      
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -55,11 +61,10 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_512C299A9B81493380CC8B43E46F0539 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_C3C4FD589FF9413CA992C50D9CF67B65 }}
 
-      - name: 'Deploy to Azure Web App'
+      - name: "Deploy to Azure Web App"
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'notiontrafficmanager-server'
-          slot-name: 'Production'
+          app-name: "notiontrafficmanager-server"
+          slot-name: "Production"
           package: .
-          
