@@ -8,9 +8,12 @@ const {
   searchUsers,
   importUsers,
   updateUser,
+  changeUserPassword,
 } = require("../controllers/user.controller");
 
 const { profileImageUploader } = require("../middleware/azure.middleware");
+const { isAuthenticated } = require("../middleware/jwt.middleware");
+const { hasRole } = require("../middleware/role.middleware");
 
 // GET /users/all
 // Gets all users depending on a page number and a limit sort by name or email or role or createdAt or updatedAt
@@ -35,5 +38,14 @@ router.get("/search", searchUsers);
 //POST /import
 // import a list of user to the
 router.post("/import", importUsers);
+
+// PUT /users/change-password/:id
+// Changes a user's password (admin only)
+router.put(
+  "/change-password/:id",
+  isAuthenticated,
+  hasRole(["admin"]),
+  changeUserPassword
+);
 
 module.exports = router;

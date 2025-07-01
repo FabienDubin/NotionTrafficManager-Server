@@ -1,6 +1,7 @@
 //This controller handles all the logic on the user route. It includes functions to get all users, get a single user by ID, and update a user's information. It also handles password reset requests for users.
 const User = require("../models/User.model.js");
 const { profileImageUploader } = require("../middleware/azure.middleware.js");
+const bcrypt = require("bcryptjs");
 
 // GET /users/all
 // Gets all users depending on a page number and a limit sort by name or email or role or createdAt or updatedAt
@@ -202,5 +203,42 @@ exports.importUsers = async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "😩 Import error :", error });
+  }
+};
+
+// PUT /users/change-password/:id
+// Changes a user's password (admin only)
+exports.changeUserPassword = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    // Validation with the same regex as signup
+    const passwordRegex = /(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({
+        message:
+          "Password must have at least 6 characters and contain at least one number, one lowercase and one uppercase letter.",
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Hash the new password
+    const saltRounds = 10;
+    const salt = bcrypt.genSaltSync(saltRounds);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Update the user's password
+    await User.findByIdAndUpdate(id, { password: hashedPassword });
+
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error changing user password:", error);
+    next(error);
   }
 };
