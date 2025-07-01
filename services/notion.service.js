@@ -178,6 +178,20 @@ class NotionService {
         };
       }
 
+      // Ajouter au calendrier (optionnel)
+      if (taskData.addToCalendar !== undefined) {
+        properties["Ajouter au Calendrier"] = {
+          checkbox: taskData.addToCalendar,
+        };
+      }
+
+      // Ajouter au rétroplanning (optionnel)
+      if (taskData.addToRetroPlanning !== undefined) {
+        properties["Ajouter au rétroplanning client"] = {
+          checkbox: taskData.addToRetroPlanning,
+        };
+      }
+
       console.log("📝 Notion properties for new task:", properties);
 
       const response = await this.notion.pages.create({
@@ -294,6 +308,20 @@ class NotionService {
               },
             },
           ],
+        };
+      }
+
+      // Gestion d'Ajouter au calendrier
+      if (updates.addToCalendar !== undefined) {
+        properties["Ajouter au Calendrier"] = {
+          checkbox: updates.addToCalendar,
+        };
+      }
+
+      // Gestion d'Ajouter au rétroplanning
+      if (updates.addToRetroPlanning !== undefined) {
+        properties["Ajouter au rétroplanning client"] = {
+          checkbox: updates.addToRetroPlanning,
         };
       }
 
@@ -477,7 +505,7 @@ class NotionService {
         "checkbox"
       ),
       addToRetroPlanning: this.getPropertyValue(
-        properties["Ajouter au rétroplannning client"],
+        properties["Ajouter au rétroplanning client"],
         "checkbox"
       ),
       googleEventId: this.getPropertyValue(
