@@ -216,6 +216,25 @@ class CalendarController {
     }
   }
 
+  // GET /calendar/teams
+  async getTeams(req, res) {
+    try {
+      const teams = await calendarService.getTeams();
+
+      res.json({
+        success: true,
+        data: teams,
+      });
+    } catch (error) {
+      console.error("Error in getTeams:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur lors de la récupération des équipes",
+        error: error.message,
+      });
+    }
+  }
+
   // GET /calendar/preferences
   async getUserPreferences(req, res) {
     try {

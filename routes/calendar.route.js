@@ -19,6 +19,7 @@ router.get("/users", calendarController.getUsers);
 router.get("/clients", calendarController.getClients);
 router.get("/projects", calendarController.getProjects);
 router.get("/status-options", calendarController.getStatusOptions);
+router.get("/teams", calendarController.getTeams);
 
 // Routes pour les préférences utilisateur
 router.get("/preferences", calendarController.getUserPreferences);

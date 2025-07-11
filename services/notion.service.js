@@ -8,6 +8,14 @@ class NotionService {
     this.configInitialized = false;
   }
 
+  // Forcer la réinitialisation de la configuration
+  resetConfig() {
+    console.log("🔄 Forcing Notion config reset...");
+    this.notion = null;
+    this.databases = null;
+    this.configInitialized = false;
+  }
+
   // Initialiser la configuration Notion (DB en priorité, puis .env)
   async initializeConfig() {
     if (this.configInitialized) {
@@ -21,10 +29,23 @@ class NotionService {
         auth: activeConfig.config.notionApiKey,
       });
 
-      this.databases = activeConfig.config.databaseIds;
+      this.databases = {
+        ...activeConfig.config.databaseIds,
+        teams:
+          activeConfig.config.databaseIds.teams ||
+          process.env.NOTION_DATABASE_TEAMS_ID ||
+          "",
+      };
       this.configInitialized = true;
 
       console.log(`✅ Notion config initialized from ${activeConfig.source}`);
+      console.log(`📊 Database IDs:`, {
+        users: this.databases.users,
+        clients: this.databases.clients,
+        projects: this.databases.projects,
+        trafic: this.databases.trafic,
+        teams: this.databases.teams,
+      });
     } catch (error) {
       console.error("❌ Failed to initialize Notion config:", error);
       throw new Error("Configuration Notion non disponible");
@@ -380,6 +401,42 @@ class NotionService {
       throw new Error("Failed to fetch users from Notion");
     }
   }
+
+  // Récupérer la liste des équipes
+  async getTeams() {
+    await this.ensureConfigInitialized();
+    try {
+      if (!this.databases.teams) {
+        throw new Error(
+          "L'ID de la base de données Équipes n'est pas configuré"
+        );
+      }
+      const response = await this.notion.databases.query({
+        database_id: this.databases.teams,
+        sorts: [
+          {
+            property: "Nom",
+            direction: "ascending",
+          },
+        ],
+      });
+
+      return response.results.map(this.formatTeam);
+    } catch (error) {
+      console.error("Error fetching teams from Notion:", error);
+      throw new Error("Failed to fetch teams from Notion");
+    }
+  }
+
+  // Formater une équipe
+  formatTeam = (page) => {
+    const properties = page.properties;
+    return {
+      id: page.id,
+      name: this.getPropertyValue(properties["Nom"], "title"),
+      // Ajouter d'autres propriétés si besoin
+    };
+  };
 
   // Récupérer la liste des clients
   async getClients() {

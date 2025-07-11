@@ -393,6 +393,16 @@ class CalendarService {
     }
   }
 
+  // Récupérer les équipes depuis Notion
+  async getTeams() {
+    try {
+      return await notionService.getTeams();
+    } catch (error) {
+      console.error("Error in getTeams:", error);
+      throw error;
+    }
+  }
+
   // Résoudre les IDs en noms en utilisant une map
   resolveIds(ids, map) {
     if (!ids) return null;

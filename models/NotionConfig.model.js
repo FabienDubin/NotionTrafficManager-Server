@@ -2,6 +2,10 @@ const { Schema, model } = require("mongoose");
 
 const notionConfigSchema = new Schema(
   {
+    name: {
+      type: String,
+      required: [true, "Configuration name is required."],
+    },
     notionApiKey: {
       type: String,
       required: [true, "Notion API Key is required."],
@@ -22,6 +26,10 @@ const notionConfigSchema = new Schema(
       trafic: {
         type: String,
         required: [true, "Trafic database ID is required."],
+      },
+      teams: {
+        type: String,
+        required: [true, "Teams database ID is required."],
       },
     },
     isActive: {

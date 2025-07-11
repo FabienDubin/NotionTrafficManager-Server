@@ -13,7 +13,19 @@ const cookieParser = require("cookie-parser");
 // unless the request is made from the same domain, by default express wont accept POST requests
 const cors = require("cors");
 
-const allowedOrigins = (process.env.ORIGIN || "").split(",");
+const allowedOrigins = (process.env.ORIGIN || "").split(",").filter(Boolean);
+
+// Ajouter les origines de développement par défaut
+const defaultDevOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+];
+
+const allAllowedOrigins = [...allowedOrigins, ...defaultDevOrigins];
 
 // Middleware configuration
 module.exports = (app) => {
@@ -25,9 +37,18 @@ module.exports = (app) => {
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        // Permettre les requêtes sans origine (ex: Postman, curl)
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+
+        // Vérifier si l'origine est autorisée
+        if (allAllowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
+          console.log(`❌ CORS blocked origin: ${origin}`);
+          console.log(`✅ Allowed origins:`, allAllowedOrigins);
           callback(new Error("Not allowed by CORS"));
         }
       },
