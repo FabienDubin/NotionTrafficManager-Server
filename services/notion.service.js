@@ -123,6 +123,33 @@ class NotionService {
     }
   }
 
+  // Récupérer toutes les tâches avec une période de travail (pour vérifier les chevauchements)
+  async getTasksWithWorkPeriod() {
+    await this.ensureConfigInitialized();
+    try {
+      const response = await this.notion.databases.query({
+        database_id: this.databases.trafic,
+        filter: {
+          property: "Période de travail",
+          date: {
+            is_not_empty: true,
+          },
+        },
+        sorts: [
+          {
+            property: "Période de travail",
+            direction: "ascending",
+          },
+        ],
+      });
+
+      return response.results.map(this.formatTask);
+    } catch (error) {
+      console.error("Error fetching tasks with work period from Notion:", error);
+      throw new Error("Failed to fetch tasks with work period from Notion");
+    }
+  }
+
   // Créer une nouvelle tâche
   async createTask(taskData) {
     await this.ensureConfigInitialized();

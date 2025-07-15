@@ -353,6 +353,46 @@ class CalendarController {
       });
     }
   }
+
+  // POST /calendar/check-overlap
+  async checkTaskOverlap(req, res) {
+    try {
+      const { assignedUsers, startDate, endDate, excludeTaskId } = req.body;
+
+      if (!assignedUsers || !Array.isArray(assignedUsers)) {
+        return res.status(400).json({
+          success: false,
+          message: "Le paramètre assignedUsers est requis et doit être un tableau",
+        });
+      }
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({
+          success: false,
+          message: "Les paramètres startDate et endDate sont requis",
+        });
+      }
+
+      const overlaps = await calendarService.checkTaskOverlap(
+        assignedUsers,
+        startDate,
+        endDate,
+        excludeTaskId
+      );
+
+      res.json({
+        success: true,
+        data: overlaps,
+      });
+    } catch (error) {
+      console.error("Error in checkTaskOverlap:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur lors de la vérification des chevauchements",
+        error: error.message,
+      });
+    }
+  }
 }
 
 module.exports = new CalendarController();

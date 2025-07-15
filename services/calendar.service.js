@@ -506,6 +506,107 @@ class CalendarService {
       return true;
     });
   }
+
+  // Vérifier les chevauchements de tâches pour les utilisateurs assignés
+  async checkTaskOverlap(assignedUsers, startDate, endDate, excludeTaskId) {
+    try {
+      console.log("🔍 Checking task overlap for:", {
+        assignedUsers,
+        startDate,
+        endDate,
+        excludeTaskId,
+      });
+
+      const conflicts = [];
+      
+      // Convertir les dates en objets Date
+      const newStart = new Date(startDate);
+      const newEnd = new Date(endDate);
+
+      // Récupérer toutes les tâches avec une période de travail
+      const allTasks = await notionService.getTasksWithWorkPeriod();
+
+      // Récupérer les données de référence pour résoudre les IDs
+      const [users, projects] = await Promise.all([
+        notionService.getUsers(),
+        notionService.getProjects(),
+      ]);
+
+      // Créer des maps pour la résolution rapide
+      const usersMap = new Map(users.map((u) => [u.id, u.name]));
+      const projectsMap = new Map(projects.map((p) => [p.id, p.name]));
+
+      // Vérifier chaque utilisateur assigné
+      for (const userId of assignedUsers) {
+        const userName = usersMap.get(userId) || userId;
+        
+        // Trouver les tâches de cet utilisateur qui peuvent chevaucher
+        const userTasks = allTasks.filter((task) => {
+          // Exclure la tâche en cours d'édition
+          if (excludeTaskId && task.id === excludeTaskId) return false;
+          
+          // Vérifier si l'utilisateur est assigné à cette tâche
+          if (!task.assignedUsers || !task.assignedUsers.includes(userId)) return false;
+          
+          // Vérifier si la tâche a une période de travail
+          if (!task.workPeriod || !task.workPeriod.start || !task.workPeriod.end) return false;
+          
+          return true;
+        });
+
+        // Vérifier les chevauchements temporels
+        for (const existingTask of userTasks) {
+          const existingStart = new Date(existingTask.workPeriod.start);
+          const existingEnd = new Date(existingTask.workPeriod.end);
+
+          // Vérifier si les périodes se chevauchent
+          if (newStart < existingEnd && newEnd > existingStart) {
+            // Résoudre le nom du projet
+            const projectName = this.resolveIds(existingTask.project, projectsMap);
+            const finalProjectName = Array.isArray(projectName) ? projectName[0] : projectName;
+
+            conflicts.push({
+              userId,
+              userName,
+              conflictingTask: {
+                id: existingTask.id,
+                name: existingTask.name,
+                projectName: finalProjectName,
+                startDate: existingTask.workPeriod.start,
+                endDate: existingTask.workPeriod.end,
+              },
+            });
+          }
+        }
+      }
+
+      // Créer le message de conflit
+      let conflictMessage = "";
+      if (conflicts.length > 0) {
+        const conflictDescriptions = conflicts.map((conflict) => {
+          const start = new Date(conflict.conflictingTask.startDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          const end = new Date(conflict.conflictingTask.endDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          return `${conflict.userName} a déjà "${conflict.conflictingTask.name}" de ${start} à ${end}`;
+        });
+        conflictMessage = conflictDescriptions.join(", ");
+      }
+
+      console.log("🔍 Overlap check result:", {
+        hasConflicts: conflicts.length > 0,
+        conflictsCount: conflicts.length,
+        conflictMessage,
+      });
+
+      return {
+        hasConflicts: conflicts.length > 0,
+        conflictMessage,
+        conflicts,
+      };
+    } catch (error) {
+      console.error("Error in checkTaskOverlap:", error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new CalendarService();

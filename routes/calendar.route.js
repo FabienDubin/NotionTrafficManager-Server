@@ -13,6 +13,7 @@ router.get("/unassigned-tasks", calendarController.getUnassignedTasks);
 router.patch("/tasks/:id", calendarController.updateTask);
 router.delete("/tasks/:id", calendarController.deleteTask);
 router.post("/tasks/filter", calendarController.filterTasks);
+router.post("/check-overlap", calendarController.checkTaskOverlap);
 
 // Routes pour les données de référence
 router.get("/users", calendarController.getUsers);
