@@ -41,15 +41,16 @@ class CalendarService {
         // Résoudre les IDs utilisateurs en noms
         const userNames = this.resolveIds(task.assignedUsers, usersMap);
 
-        // Debug logs pour une tâche
-        if (task.name && task.name.includes("PPM")) {
-          console.log("🔍 Debug task resolution:", {
+        // Couleur du client avec debug
+        const clientColor = this.getClientColor(clientName, clientColors);
+
+        // Debug logs pour les premières tâches pour éviter le spam
+        if (tasks.indexOf(task) < 3) {
+          console.log(`🔍 [DEBUG] Task enrichment #${tasks.indexOf(task) + 1}:`, {
             taskName: task.name,
             originalClient: task.client,
-            resolvedClientNames: clientNames,
-            finalClientName: clientName,
-            originalAssignedUsers: task.assignedUsers,
-            resolvedUserNames: userNames,
+            resolvedClientName: clientName,
+            clientColor: clientColor,
             originalProject: task.project,
             resolvedProjectName: projectName,
           });
@@ -63,7 +64,7 @@ class CalendarService {
           projectName: projectName,
           assignedUsersNames: userNames,
           // Couleur du client
-          clientColor: this.getClientColor(clientName, clientColors),
+          clientColor: clientColor,
           // Formater les dates pour FullCalendar
           start: task.workPeriod?.start,
           end: task.workPeriod?.end,
@@ -419,20 +420,30 @@ class CalendarService {
     const clientColors = await ClientColors.find({});
     const colorMap = {};
 
+    console.log(`🎨 [DEBUG] ClientColors from DB: ${clientColors.length} entries found`);
+    
     clientColors.forEach((cc) => {
       colorMap[cc.clientName] = cc.color;
+      console.log(`🎨 [DEBUG] Color mapping: "${cc.clientName}" → ${cc.color}`);
     });
 
+    console.log(`🎨 [DEBUG] Final colorMap:`, colorMap);
     return colorMap;
   }
 
   getClientColor(clientName, colorMap) {
-    if (!clientName) return "#6366f1"; // Couleur par défaut
+    if (!clientName) {
+      console.log(`🎨 [DEBUG] No clientName provided, using default color`);
+      return "#6366f1"; // Couleur par défaut
+    }
 
     // Si c'est un array (rollup), prendre le premier élément
     const client = Array.isArray(clientName) ? clientName[0] : clientName;
-
-    return colorMap[client] || this.generateColorForClient(client);
+    const color = colorMap[client] || this.generateColorForClient(client);
+    
+    console.log(`🎨 [DEBUG] Color resolution: "${client}" → ${color} ${colorMap[client] ? '(from config)' : '(generated)'}`);
+    
+    return color;
   }
 
   generateColorForClient(clientName) {
