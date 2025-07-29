@@ -7,11 +7,19 @@ const MONGO_URI = process.env.MONGODB_URI;
 // ||
 // `mongodb://${process.env.MONGODB_USER}:${process.env.MONGODB_PASSWORD}@127.0.0.1:27017/${process.env.APP_NAME}`;
 
-connectDB(MONGO_URI).then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+connectDB(MONGO_URI)
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🗄️  Database: ${MONGO_URI ? 'Connected' : 'URI not configured'}`);
+    });
+  })
+  .catch((error) => {
+    console.error('❌ Failed to start server:', error);
+    console.error('🔍 Check your MongoDB connection and environment variables');
+    process.exit(1);
   });
-});
 
 // console.log({
 //   token: process.env.NOTION_API_KEY,

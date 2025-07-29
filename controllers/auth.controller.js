@@ -156,7 +156,19 @@ exports.verify = async (req, res, next) => {
   // If JWT token is valid the payload gets decoded by the
   // isAuthenticated middleware and is made available on `req.payload`
   try {
-    const currentUser = await User.findById(req.payload._id);
+    console.log("Auth verify called with payload:", req.payload);
+    
+    // L'utilisateur est déjà récupéré dans le middleware isAuthenticated
+    // On utilise req.user au lieu de re-fetch depuis la DB
+    const currentUser = req.user;
+    
+    if (!currentUser) {
+      console.error("Auth verify: No user found in req.user");
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+    
+    console.log(`Auth verify successful for user: ${currentUser.email}`);
+    
     // Checking the role of the current user
     if (currentUser.role === "admin" || currentUser.role === "moderator") {
       res.status(200).json({
@@ -178,7 +190,7 @@ exports.verify = async (req, res, next) => {
       });
     }
   } catch (err) {
-    console.error(err);
+    console.error("Error in auth verify controller:", err);
     next(err);
   }
 };

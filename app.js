@@ -2,6 +2,10 @@
 // https://www.npmjs.com/package/dotenv
 require("dotenv").config();
 
+// Vérification des variables d'environnement critiques
+const { checkEnvironmentVariables } = require('./utils/env-check');
+checkEnvironmentVariables();
+
 // ℹ️ Connects to the database
 require("./db");
 
