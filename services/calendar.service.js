@@ -6,34 +6,90 @@ class CalendarService {
   // Récupérer les tâches avec les couleurs clients pour une période
   async getTasksWithColors(startDate, endDate, userId) {
     try {
+      console.log(`🔍 [DEBUG] Starting getTasksWithColors - Environment: ${process.env.NODE_ENV || 'development'}`);
+      const startTime = Date.now();
+
       // Récupérer les tâches depuis Notion
       const tasks = await notionService.getTasksByDateRange(startDate, endDate);
+      console.log(`⏱️ [TIMING] Tasks loaded in ${Date.now() - startTime}ms`);
 
       // Récupérer les données de référence pour résoudre les IDs
+      const refDataTime = Date.now();
       const [clients, projects, users] = await Promise.all([
         notionService.getClients(),
-        notionService.getProjects(),
+        this.getProjects(), // Utiliser la version enrichie avec clients
         notionService.getUsers(),
       ]);
+      console.log(`⏱️ [TIMING] Reference data loaded in ${Date.now() - refDataTime}ms`);
+
+      // Log des données de référence
+      console.log(`🔍 [DEBUG] Reference data loaded:`, {
+        clients: clients.length,
+        projects: projects.length,
+        users: users.length,
+      });
+
+      // Log quelques exemples de clients et projets pour vérifier leur structure
+      if (clients.length > 0) {
+        console.log(`🔍 [DEBUG] Sample clients:`, clients.slice(0, 3).map(c => ({ id: c.id, name: c.name })));
+      } else {
+        console.log(`⚠️ [WARNING] No clients loaded from Notion!`);
+      }
+
+      if (projects.length > 0) {
+        console.log(`🔍 [DEBUG] Sample projects:`, projects.slice(0, 3).map(p => ({ id: p.id, name: p.name, client: p.client })));
+      } else {
+        console.log(`⚠️ [WARNING] No projects loaded from Notion!`);
+      }
 
       // Créer des maps pour la résolution rapide
       const clientsMap = new Map(clients.map((c) => [c.id, c.name]));
-      const projectsMap = new Map(projects.map((p) => [p.id, p.name]));
+      const projectsMap = new Map(projects.map((p) => [p.id, p])); // Stocker l'objet projet complet
       const usersMap = new Map(users.map((u) => [u.id, u.name]));
 
       // Récupérer les couleurs des clients
+      const colorsTime = Date.now();
       const clientColors = await this.getClientColorsMap();
+      console.log(`⏱️ [TIMING] Client colors loaded in ${Date.now() - colorsTime}ms`);
+
+      // Log de l'état des données de base
+      console.log(`🔍 [DEBUG] Data state before enrichment:`, {
+        tasksCount: tasks.length,
+        clientsMapSize: clientsMap.size,
+        projectsMapSize: projectsMap.size,
+        usersMapSize: usersMap.size,
+        clientColorsCount: Object.keys(clientColors).length,
+      });
+
+      // Séparer les tâches congés des autres pour les logs
+      const vacationTasks = tasks.filter(t => t.name && t.name.includes('Congés'));
+      const normalTasks = tasks.filter(t => t.name && !t.name.includes('Congés'));
+      
+      console.log(`🔍 [DEBUG] Task distribution:`, {
+        vacationTasks: vacationTasks.length,
+        normalTasks: normalTasks.length,
+        totalTasks: tasks.length
+      });
 
       // Enrichir les tâches avec les noms résolus et les couleurs
-      const enrichedTasks = tasks.map((task) => {
-        // Résoudre les IDs clients en noms
-        const clientNames = this.resolveIds(task.client, clientsMap);
-        const clientName = Array.isArray(clientNames)
+      const enrichedTasks = tasks.map((task, index) => {
+        // Résoudre les IDs clients en noms (essayer d'abord le rollup)
+        let clientNames = this.resolveIds(task.client, clientsMap);
+        let clientName = Array.isArray(clientNames)
           ? clientNames[0]
           : clientNames;
 
+        // Si le client n'est pas trouvé via le rollup, essayer via le projet
+        if (!clientName && task.project && Array.isArray(task.project) && task.project.length > 0) {
+          const clientFromProject = this.resolveClientFromProject(task.project, projectsMap);
+          if (clientFromProject) {
+            clientName = clientFromProject;
+            clientNames = [clientFromProject];
+          }
+        }
+
         // Résoudre les IDs projets en noms
-        const projectNames = this.resolveIds(task.project, projectsMap);
+        const projectNames = this.resolveProjectNames(task.project, projectsMap);
         const projectName = Array.isArray(projectNames)
           ? projectNames[0]
           : projectNames;
@@ -44,15 +100,22 @@ class CalendarService {
         // Couleur du client avec debug
         const clientColor = this.getClientColor(clientName, clientColors);
 
-        // Debug logs pour les premières tâches pour éviter le spam
-        if (tasks.indexOf(task) < 3) {
-          console.log(`🔍 [DEBUG] Task enrichment #${tasks.indexOf(task) + 1}:`, {
+        // Debug logs détaillés - montrer différents types de tâches
+        const isVacation = task.name && task.name.includes('Congés');
+        const clientResolvedFromProject = !task.client && clientName;
+        
+        if (index < 3 || (!isVacation && normalTasks.indexOf(task) < 3)) {
+          console.log(`🔍 [DEBUG] Task enrichment #${index + 1} ${isVacation ? '(VACATION)' : '(NORMAL)'}:`, {
             taskName: task.name,
+            taskType: isVacation ? 'VACATION' : 'NORMAL',
             originalClient: task.client,
             resolvedClientName: clientName,
+            clientResolvedFromProject: clientResolvedFromProject,
             clientColor: clientColor,
             originalProject: task.project,
             resolvedProjectName: projectName,
+            hasClientData: !!task.client,
+            hasProjectData: !!task.project,
           });
         }
 
@@ -80,6 +143,19 @@ class CalendarService {
         };
       });
 
+      console.log(`⏱️ [TIMING] Total getTasksWithColors execution: ${Date.now() - startTime}ms`);
+      console.log(`🔍 [DEBUG] Enrichment completed - returning ${enrichedTasks.length} tasks`);
+      
+      // Log final pour vérifier les couleurs appliquées
+      const tasksWithColors = enrichedTasks.filter(t => t.clientColor && t.clientColor !== '#6366f1');
+      const tasksWithDefaultColor = enrichedTasks.filter(t => !t.clientColor || t.clientColor === '#6366f1');
+      
+      console.log(`🎨 [DEBUG] Color application summary:`, {
+        tasksWithCustomColors: tasksWithColors.length,
+        tasksWithDefaultColor: tasksWithDefaultColor.length,
+        totalTasks: enrichedTasks.length
+      });
+
       return enrichedTasks;
     } catch (error) {
       console.error("Error in getTasksWithColors:", error);
@@ -95,24 +171,33 @@ class CalendarService {
       // Récupérer les données de référence pour résoudre les IDs
       const [clients, projects, users] = await Promise.all([
         notionService.getClients(),
-        notionService.getProjects(),
+        this.getProjects(), // Utiliser la version enrichie avec clients
         notionService.getUsers(),
       ]);
 
       // Créer des maps pour la résolution rapide
       const clientsMap = new Map(clients.map((c) => [c.id, c.name]));
-      const projectsMap = new Map(projects.map((p) => [p.id, p.name]));
+      const projectsMap = new Map(projects.map((p) => [p.id, p])); // Stocker l'objet projet complet
       const usersMap = new Map(users.map((u) => [u.id, u.name]));
 
       const clientColors = await this.getClientColorsMap();
 
       return tasks.map((task) => {
-        // Résoudre les IDs en noms
-        const clientNames = this.resolveIds(task.client, clientsMap);
-        const clientName = Array.isArray(clientNames)
+        // Résoudre les IDs clients en noms (essayer d'abord le rollup)
+        let clientNames = this.resolveIds(task.client, clientsMap);
+        let clientName = Array.isArray(clientNames)
           ? clientNames[0]
           : clientNames;
-        const projectNames = this.resolveIds(task.project, projectsMap);
+
+        // Si le client n'est pas trouvé via le rollup, essayer via le projet
+        if (!clientName && task.project && Array.isArray(task.project) && task.project.length > 0) {
+          const clientFromProject = this.resolveClientFromProject(task.project, projectsMap);
+          if (clientFromProject) {
+            clientName = clientFromProject;
+            clientNames = [clientFromProject];
+          }
+        }
+        const projectNames = this.resolveProjectNames(task.project, projectsMap);
         const projectName = Array.isArray(projectNames)
           ? projectNames[0]
           : projectNames;
@@ -140,26 +225,35 @@ class CalendarService {
       // Récupérer les données de référence pour résoudre les IDs
       const [clients, projects, users] = await Promise.all([
         notionService.getClients(),
-        notionService.getProjects(),
+        this.getProjects(), // Utiliser la version enrichie avec clients
         notionService.getUsers(),
       ]);
 
       // Créer des maps pour la résolution rapide
       const clientsMap = new Map(clients.map((c) => [c.id, c.name]));
-      const projectsMap = new Map(projects.map((p) => [p.id, p.name]));
+      const projectsMap = new Map(projects.map((p) => [p.id, p])); // Stocker l'objet projet complet
       const usersMap = new Map(users.map((u) => [u.id, u.name]));
 
       // Récupérer les couleurs des clients
       const clientColors = await this.getClientColorsMap();
 
-      // Résoudre les IDs clients en noms
-      const clientNames = this.resolveIds(task.client, clientsMap);
-      const clientName = Array.isArray(clientNames)
+      // Résoudre les IDs clients en noms (essayer d'abord le rollup)
+      let clientNames = this.resolveIds(task.client, clientsMap);
+      let clientName = Array.isArray(clientNames)
         ? clientNames[0]
         : clientNames;
 
+      // Si le client n'est pas trouvé via le rollup, essayer via le projet
+      if (!clientName && task.project && Array.isArray(task.project) && task.project.length > 0) {
+        const clientFromProject = this.resolveClientFromProject(task.project, projectsMap);
+        if (clientFromProject) {
+          clientName = clientFromProject;
+          clientNames = [clientFromProject];
+        }
+      }
+
       // Résoudre les IDs projets en noms
-      const projectNames = this.resolveIds(task.project, projectsMap);
+      const projectNames = this.resolveProjectNames(task.project, projectsMap);
       const projectName = Array.isArray(projectNames)
         ? projectNames[0]
         : projectNames;
@@ -415,20 +509,77 @@ class CalendarService {
     }
   }
 
+  // Résoudre les IDs de projets en noms (gère les objets complets)  
+  resolveProjectNames(ids, projectsMap) {
+    if (!ids) return null;
+
+    if (Array.isArray(ids)) {
+      return ids.map((id) => {
+        const project = projectsMap.get(id);
+        return project?.name || id;
+      }).filter(Boolean);
+    } else {
+      const project = projectsMap.get(ids);
+      return project?.name || ids;
+    }
+  }
+
+  // Résoudre le client depuis le projet (fallback quand le rollup est cassé)
+  resolveClientFromProject(projectIds, projectsMap) {
+    if (!projectIds || !Array.isArray(projectIds) || projectIds.length === 0) {
+      return null;
+    }
+
+    try {
+      // Prendre le premier projet de la liste
+      const projectId = projectIds[0];
+      const project = projectsMap.get(projectId);
+      
+      if (!project) {
+        return null;
+      }
+
+      // Le projet a déjà le client résolu grâce à getProjects() qui enrichit les données
+      if (project.client) {
+        return Array.isArray(project.client) ? project.client[0] : project.client;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error resolving client from project:", error);
+      return null;
+    }
+  }
+
   // Utilitaires privées
   async getClientColorsMap() {
-    const clientColors = await ClientColors.find({});
-    const colorMap = {};
+    try {
+      const clientColors = await ClientColors.find({});
+      const colorMap = {};
 
-    console.log(`🎨 [DEBUG] ClientColors from DB: ${clientColors.length} entries found`);
-    
-    clientColors.forEach((cc) => {
-      colorMap[cc.clientName] = cc.color;
-      console.log(`🎨 [DEBUG] Color mapping: "${cc.clientName}" → ${cc.color}`);
-    });
+      console.log(`🎨 [DEBUG] ClientColors from DB: ${clientColors.length} entries found`);
+      
+      if (clientColors.length === 0) {
+        console.log(`⚠️ [WARNING] No client colors found in database!`);
+      }
+      
+      clientColors.forEach((cc) => {
+        colorMap[cc.clientName] = cc.color;
+        console.log(`🎨 [DEBUG] Color mapping: "${cc.clientName}" → ${cc.color}`);
+      });
 
-    console.log(`🎨 [DEBUG] Final colorMap:`, colorMap);
-    return colorMap;
+      console.log(`🎨 [DEBUG] Final colorMap:`, colorMap);
+      
+      // Log si le colorMap est vide
+      if (Object.keys(colorMap).length === 0) {
+        console.log(`⚠️ [WARNING] ColorMap is empty! This will cause all tasks to use default colors.`);
+      }
+      
+      return colorMap;
+    } catch (error) {
+      console.error(`❌ [ERROR] Failed to get client colors from DB:`, error);
+      return {}; // Retourner un objet vide en cas d'erreur
+    }
   }
 
   getClientColor(clientName, colorMap) {
@@ -540,12 +691,12 @@ class CalendarService {
       // Récupérer les données de référence pour résoudre les IDs
       const [users, projects] = await Promise.all([
         notionService.getUsers(),
-        notionService.getProjects(),
+        this.getProjects(), // Utiliser la version enrichie avec clients
       ]);
 
       // Créer des maps pour la résolution rapide
       const usersMap = new Map(users.map((u) => [u.id, u.name]));
-      const projectsMap = new Map(projects.map((p) => [p.id, p.name]));
+      const projectsMap = new Map(projects.map((p) => [p.id, p])); // Stocker l'objet projet complet
 
       // Vérifier chaque utilisateur assigné
       for (const userId of assignedUsers) {
@@ -573,7 +724,7 @@ class CalendarService {
           // Vérifier si les périodes se chevauchent
           if (newStart < existingEnd && newEnd > existingStart) {
             // Résoudre le nom du projet
-            const projectName = this.resolveIds(existingTask.project, projectsMap);
+            const projectName = this.resolveProjectNames(existingTask.project, projectsMap);
             const finalProjectName = Array.isArray(projectName) ? projectName[0] : projectName;
 
             conflicts.push({

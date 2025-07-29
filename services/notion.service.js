@@ -145,7 +145,10 @@ class NotionService {
 
       return response.results.map(this.formatTask);
     } catch (error) {
-      console.error("Error fetching tasks with work period from Notion:", error);
+      console.error(
+        "Error fetching tasks with work period from Notion:",
+        error
+      );
       throw new Error("Failed to fetch tasks with work period from Notion");
     }
   }
@@ -545,6 +548,30 @@ class NotionService {
   formatTask = (page) => {
     const properties = page.properties;
 
+    // Debug pour les propriétés clients
+    const clientProperty = properties["Client"];
+    const projectProperty = properties["📁 Projets"];
+
+    console.log(
+      `🔍 [NOTION DEBUG] Task "${
+        properties["Nom de tâche"]?.title?.[0]?.plain_text || "unnamed"
+      }":`,
+      {
+        clientProperty: clientProperty
+          ? {
+              type: clientProperty.type,
+              rollup: clientProperty.rollup,
+            }
+          : "MISSING",
+        projectProperty: projectProperty
+          ? {
+              type: projectProperty.type,
+              relation: projectProperty.relation,
+            }
+          : "MISSING",
+      }
+    );
+
     return {
       id: page.id,
       name:
@@ -655,8 +682,8 @@ class NotionService {
     return {
       id: page.id,
       name: this.getPropertyValue(properties["Nom"], "title"),
-      clients: this.getPropertyValue(properties["🫡 Clients"], "relation"),
-      client: this.getPropertyValue(properties["🫡 Clients"], "rollup"),
+      clients: this.getPropertyValue(properties["Client"], "relation"),
+      client: this.getPropertyValue(properties["Client"], "rollup"),
       type: this.getPropertyValue(properties["Type"], "multi_select"),
       status: this.getPropertyValue(properties["Statut du projet"], "select"),
       involvedTeams: this.getPropertyValue(
@@ -734,10 +761,24 @@ class NotionService {
         }
         return property.relation?.map((rel) => rel.id) || [];
       case "rollup":
+        // Debug spécial pour les rollups clients
+        if (property.rollup) {
+          console.log(
+            `🔍 [ROLLUP DEBUG] Rollup type: ${property.rollup.type}`,
+            {
+              rollupData: property.rollup,
+            }
+          );
+        }
+
         if (property.rollup?.type === "array") {
-          return (
+          const result =
             property.rollup.array
               ?.map((item) => {
+                console.log(`🔍 [ROLLUP DEBUG] Array item:`, {
+                  type: item.type,
+                  item,
+                });
                 if (item.type === "title") {
                   return item.title?.[0]?.plain_text;
                 } else if (item.type === "rich_text") {
@@ -751,20 +792,30 @@ class NotionService {
                 return item;
               })
               .filter(Boolean)
-              .flat() || []
-          );
+              .flat() || [];
+
+          console.log(`🔍 [ROLLUP DEBUG] Array result:`, result);
+          return result;
         } else if (property.rollup?.type === "string") {
+          console.log(
+            `🔍 [ROLLUP DEBUG] String result:`,
+            property.rollup.string
+          );
           return property.rollup.string;
         } else if (property.rollup?.type === "relation") {
           // Rollup direct d'une relation
-          return property.rollup.relation?.map((rel) => rel.id) || [];
+          const result = property.rollup.relation?.map((rel) => rel.id) || [];
+          console.log(`🔍 [ROLLUP DEBUG] Relation result:`, result);
+          return result;
         }
-        return (
+
+        const fallback =
           property.rollup?.array ||
           property.rollup?.string ||
           property.rollup?.relation ||
-          null
-        );
+          null;
+        console.log(`🔍 [ROLLUP DEBUG] Fallback result:`, fallback);
+        return fallback;
       case "formula":
         if (property.formula?.type === "string") {
           return property.formula.string;
