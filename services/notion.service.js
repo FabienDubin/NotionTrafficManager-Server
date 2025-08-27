@@ -530,7 +530,7 @@ class NotionService {
       // Fallback si pas de propriété status trouvée
       return [
         { id: "1", name: "Pas commencé", color: "gray" },
-        { id: "2", name: "En cours", color: "blue" },
+        { id: "2", name: "A valider", color: "blue" },
         { id: "3", name: "Terminé", color: "green" },
       ];
     } catch (error) {
@@ -538,7 +538,7 @@ class NotionService {
       // Fallback en cas d'erreur
       return [
         { id: "1", name: "Pas commencé", color: "gray" },
-        { id: "2", name: "En cours", color: "blue" },
+        { id: "2", name: "A valider", color: "blue" },
         { id: "3", name: "Terminé", color: "green" },
       ];
     }
