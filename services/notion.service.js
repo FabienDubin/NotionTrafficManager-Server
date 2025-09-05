@@ -59,91 +59,136 @@ class NotionService {
     }
   }
 
-  // Récupérer les tâches pour une période donnée
+  // Récupérer les tâches pour une période donnée (avec pagination)
   async getTasksByDateRange(startDate, endDate) {
     await this.ensureConfigInitialized();
     try {
-      const response = await this.notion.databases.query({
-        database_id: this.databases.trafic,
-        filter: {
-          and: [
+      let allResults = [];
+      let hasMore = true;
+      let startCursor = undefined;
+      
+      while (hasMore) {
+        const response = await this.notion.databases.query({
+          database_id: this.databases.trafic,
+          filter: {
+            and: [
+              {
+                property: "Période de travail",
+                date: {
+                  on_or_after: startDate,
+                },
+              },
+              {
+                property: "Période de travail",
+                date: {
+                  on_or_before: endDate,
+                },
+              },
+            ],
+          },
+          sorts: [
             {
               property: "Période de travail",
-              date: {
-                on_or_after: startDate,
-              },
-            },
-            {
-              property: "Période de travail",
-              date: {
-                on_or_before: endDate,
-              },
+              direction: "ascending",
             },
           ],
-        },
-        sorts: [
-          {
-            property: "Période de travail",
-            direction: "ascending",
-          },
-        ],
-      });
+          page_size: 100,
+          start_cursor: startCursor,
+        });
+        
+        allResults = allResults.concat(response.results);
+        hasMore = response.has_more;
+        startCursor = response.next_cursor;
+        
+        console.log(`📊 Fetched ${response.results.length} tasks, total: ${allResults.length}, has_more: ${hasMore}`);
+      }
 
-      return response.results.map(this.formatTask);
+      console.log(`✅ Total tasks fetched for date range: ${allResults.length}`);
+      return allResults.map(this.formatTask);
     } catch (error) {
       console.error("Error fetching tasks from Notion:", error);
       throw new Error("Failed to fetch tasks from Notion");
     }
   }
 
-  // Récupérer toutes les tâches non assignées (sans période de travail UNIQUEMENT)
+  // Récupérer toutes les tâches non assignées (sans période de travail UNIQUEMENT) avec pagination
   async getUnassignedTasks() {
     await this.ensureConfigInitialized();
     try {
-      const response = await this.notion.databases.query({
-        database_id: this.databases.trafic,
-        filter: {
-          property: "Période de travail",
-          date: {
-            is_empty: true,
+      let allResults = [];
+      let hasMore = true;
+      let startCursor = undefined;
+      
+      while (hasMore) {
+        const response = await this.notion.databases.query({
+          database_id: this.databases.trafic,
+          filter: {
+            property: "Période de travail",
+            date: {
+              is_empty: true,
+            },
           },
-        },
-        sorts: [
-          {
-            property: "Nom de tâche",
-            direction: "ascending",
-          },
-        ],
-      });
+          sorts: [
+            {
+              property: "Nom de tâche",
+              direction: "ascending",
+            },
+          ],
+          page_size: 100,
+          start_cursor: startCursor,
+        });
+        
+        allResults = allResults.concat(response.results);
+        hasMore = response.has_more;
+        startCursor = response.next_cursor;
+        
+        console.log(`📊 Fetched ${response.results.length} unassigned tasks, total: ${allResults.length}, has_more: ${hasMore}`);
+      }
 
-      return response.results.map(this.formatTask);
+      console.log(`✅ Total unassigned tasks fetched: ${allResults.length}`);
+      return allResults.map(this.formatTask);
     } catch (error) {
       console.error("Error fetching unassigned tasks from Notion:", error);
       throw new Error("Failed to fetch unassigned tasks from Notion");
     }
   }
 
-  // Récupérer toutes les tâches avec une période de travail (pour vérifier les chevauchements)
+  // Récupérer toutes les tâches avec une période de travail (pour vérifier les chevauchements) avec pagination
   async getTasksWithWorkPeriod() {
     await this.ensureConfigInitialized();
     try {
-      const response = await this.notion.databases.query({
-        database_id: this.databases.trafic,
-        filter: {
-          property: "Période de travail",
-          date: {
-            is_not_empty: true,
-          },
-        },
-        sorts: [
-          {
+      let allResults = [];
+      let hasMore = true;
+      let startCursor = undefined;
+      
+      while (hasMore) {
+        const response = await this.notion.databases.query({
+          database_id: this.databases.trafic,
+          filter: {
             property: "Période de travail",
-            direction: "ascending",
+            date: {
+              is_not_empty: true,
+            },
           },
-        ],
-      });
+          sorts: [
+            {
+              property: "Période de travail",
+              direction: "ascending",
+            },
+          ],
+          page_size: 100,
+          start_cursor: startCursor,
+        });
+        
+        allResults = allResults.concat(response.results);
+        hasMore = response.has_more;
+        startCursor = response.next_cursor;
+        
+        console.log(`📊 Fetched ${response.results.length} tasks with work period, total: ${allResults.length}, has_more: ${hasMore}`);
+      }
 
-      return response.results.map(this.formatTask);
+      console.log(`✅ Total tasks with work period fetched: ${allResults.length}`);
+      return allResults.map(this.formatTask);
     } catch (error) {
       console.error(
         "Error fetching tasks with work period from Notion:",
@@ -411,28 +456,40 @@ class NotionService {
     }
   }
 
-  // Récupérer la liste des utilisateurs/créatifs
+  // Récupérer la liste des utilisateurs/créatifs avec pagination
   async getUsers() {
     await this.ensureConfigInitialized();
     try {
-      const response = await this.notion.databases.query({
-        database_id: this.databases.users,
-        sorts: [
-          {
-            property: "Nom",
-            direction: "ascending",
-          },
-        ],
-      });
+      let allResults = [];
+      let hasMore = true;
+      let startCursor = undefined;
+      
+      while (hasMore) {
+        const response = await this.notion.databases.query({
+          database_id: this.databases.users,
+          sorts: [
+            {
+              property: "Nom",
+              direction: "ascending",
+            },
+          ],
+          page_size: 100,
+          start_cursor: startCursor,
+        });
+        
+        allResults = allResults.concat(response.results);
+        hasMore = response.has_more;
+        startCursor = response.next_cursor;
+      }
 
-      return response.results.map(this.formatUser);
+      return allResults.map(this.formatUser);
     } catch (error) {
       console.error("Error fetching users from Notion:", error);
       throw new Error("Failed to fetch users from Notion");
     }
   }
 
-  // Récupérer la liste des équipes
+  // Récupérer la liste des équipes avec pagination
   async getTeams() {
     await this.ensureConfigInitialized();
     try {
@@ -441,17 +498,30 @@ class NotionService {
           "L'ID de la base de données Équipes n'est pas configuré"
         );
       }
-      const response = await this.notion.databases.query({
-        database_id: this.databases.teams,
-        sorts: [
-          {
-            property: "Nom",
-            direction: "ascending",
-          },
-        ],
-      });
+      
+      let allResults = [];
+      let hasMore = true;
+      let startCursor = undefined;
+      
+      while (hasMore) {
+        const response = await this.notion.databases.query({
+          database_id: this.databases.teams,
+          sorts: [
+            {
+              property: "Nom",
+              direction: "ascending",
+            },
+          ],
+          page_size: 100,
+          start_cursor: startCursor,
+        });
+        
+        allResults = allResults.concat(response.results);
+        hasMore = response.has_more;
+        startCursor = response.next_cursor;
+      }
 
-      return response.results.map(this.formatTeam);
+      return allResults.map(this.formatTeam);
     } catch (error) {
       console.error("Error fetching teams from Notion:", error);
       throw new Error("Failed to fetch teams from Notion");
@@ -468,42 +538,66 @@ class NotionService {
     };
   };
 
-  // Récupérer la liste des clients
+  // Récupérer la liste des clients avec pagination
   async getClients() {
     await this.ensureConfigInitialized();
     try {
-      const response = await this.notion.databases.query({
-        database_id: this.databases.clients,
-        sorts: [
-          {
-            property: "Nom du client",
-            direction: "ascending",
-          },
-        ],
-      });
+      let allResults = [];
+      let hasMore = true;
+      let startCursor = undefined;
+      
+      while (hasMore) {
+        const response = await this.notion.databases.query({
+          database_id: this.databases.clients,
+          sorts: [
+            {
+              property: "Nom du client",
+              direction: "ascending",
+            },
+          ],
+          page_size: 100,
+          start_cursor: startCursor,
+        });
+        
+        allResults = allResults.concat(response.results);
+        hasMore = response.has_more;
+        startCursor = response.next_cursor;
+      }
 
-      return response.results.map(this.formatClient);
+      return allResults.map(this.formatClient);
     } catch (error) {
       console.error("Error fetching clients from Notion:", error);
       throw new Error("Failed to fetch clients from Notion");
     }
   }
 
-  // Récupérer la liste des projets
+  // Récupérer la liste des projets avec pagination
   async getProjects() {
     await this.ensureConfigInitialized();
     try {
-      const response = await this.notion.databases.query({
-        database_id: this.databases.projects,
-        sorts: [
-          {
-            property: "Nom",
-            direction: "ascending",
-          },
-        ],
-      });
+      let allResults = [];
+      let hasMore = true;
+      let startCursor = undefined;
+      
+      while (hasMore) {
+        const response = await this.notion.databases.query({
+          database_id: this.databases.projects,
+          sorts: [
+            {
+              property: "Nom",
+              direction: "ascending",
+            },
+          ],
+          page_size: 100,
+          start_cursor: startCursor,
+        });
+        
+        allResults = allResults.concat(response.results);
+        hasMore = response.has_more;
+        startCursor = response.next_cursor;
+      }
 
-      return response.results.map(this.formatProject);
+      return allResults.map(this.formatProject);
     } catch (error) {
       console.error("Error fetching projects from Notion:", error);
       throw new Error("Failed to fetch projects from Notion");
